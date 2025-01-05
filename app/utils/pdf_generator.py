@@ -4,6 +4,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from io import BytesIO
+from datetime import datetime
 
 def create_patient_pdf(patient):
     buffer = BytesIO()
@@ -160,3 +161,172 @@ def create_table(data):
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # Align text to top for multi-line cells
     ]))
     return table 
+
+def create_followup_pdf(followup, patient):
+    # Create buffer and document
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=50,
+        leftMargin=50,
+        topMargin=50,
+        bottomMargin=50
+    )
+    
+    elements = []
+    
+    # Enhanced Styles
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name='CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        spaceAfter=5,
+        alignment=1,  # Center
+        textColor=colors.HexColor('#2c3e50')
+    ))
+    styles.add(ParagraphStyle(
+        name='SubTitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=20,
+        alignment=1,  # Center
+        textColor=colors.HexColor('#34495e')
+    ))
+    styles.add(ParagraphStyle(
+        name='SectionHeader',
+        parent=styles['Heading2'],
+        fontSize=12,
+        spaceBefore=15,
+        spaceAfter=10,
+        textColor=colors.HexColor('#2980b9')
+    ))
+    styles.add(ParagraphStyle(
+        name='NormalText',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=15,
+        textColor=colors.HexColor('#2c3e50')
+    ))
+
+    # Common table style
+    common_table_style = TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f8f9fa')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#95a5a6')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9f9f9')]),
+    ])
+
+    # Header with Logo/Hospital Name and Generation Time
+    header_data = [
+        [Paragraph("Sparsh Hospital", styles['CustomTitle']), 
+         Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 
+                  ParagraphStyle(
+                      'GenerationTime',
+                      parent=styles['Normal'],
+                      fontSize=8,
+                      textColor=colors.HexColor('#7f8c8d'),
+                      alignment=2  # Right alignment
+                  ))],
+        [Paragraph("Follow-up Report", styles['SubTitle']), ""]
+    ]
+    
+    header_table = Table(header_data, colWidths=[400, 100])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 20))
+
+    # Patient and Visit Information in a single table
+    info_data = [
+        # Header row
+        [Paragraph("<b>Patient Information</b>", styles['NormalText']), 
+         "", 
+         Paragraph("<b>Visit Details</b>", styles['NormalText']), 
+         ""],
+        # Data rows
+        ["Name:", patient['name'], "Visit Date:", followup['visit_date'].strftime('%Y-%m-%d')],
+        ["Patient ID:", patient['opd_uid'], "Doctor:", followup['doctor_name']],
+        ["Gender:", patient['gender'].title(), "Next Visit:", 
+         followup['next_visit_date'].strftime('%Y-%m-%d') if followup['next_visit_date'] else 'Not scheduled'],
+        ["Phone:", patient['phone1'], "", ""],
+    ]
+    
+    info_table = Table(info_data, colWidths=[80, 170, 80, 170])
+    info_table_style = TableStyle([
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6')),
+        ('BACKGROUND', (0, 0), (1, 0), colors.HexColor('#f8f9fa')),
+        ('BACKGROUND', (2, 0), (3, 0), colors.HexColor('#f8f9fa')),
+        ('SPAN', (0, 0), (1, 0)),  # Merge cells for "Patient Information"
+        ('SPAN', (2, 0), (3, 0)),  # Merge cells for "Visit Details"
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#95a5a6')),
+    ])
+    info_table.setStyle(info_table_style)
+    elements.append(info_table)
+    elements.append(Spacer(1, 20))
+    
+    # Medical Details
+    for section in [
+        ('Complaints', followup['complaints']),
+        ('Examination', followup['examination']),
+        ('Diagnosis', followup['diagnosis']),
+        ('Treatment', followup['treatment'])
+    ]:
+        if section[1]:
+            elements.append(Paragraph(section[0], styles['SectionHeader']))
+            detail_table = Table([[section[1]]], colWidths=[500])
+            detail_table.setStyle(TableStyle([
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6')),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('PADDING', (0, 0), (-1, -1), 12),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+            ]))
+            elements.append(detail_table)
+            elements.append(Spacer(1, 10))
+    
+    # Prescriptions
+    if followup.get('prescriptions'):
+        elements.append(Paragraph("Prescriptions", styles['SectionHeader']))
+        prescription_data = [["Medicine", "Quantity/Dosage", "Notes"]]
+        for prescription in followup['prescriptions']:
+            prescription_data.append([
+                prescription['medicine_name'],
+                prescription['quantity'],
+                prescription.get('notes', '')
+            ])
+        
+        prescription_table = Table(prescription_data, colWidths=[200, 150, 150])
+        prescription_table.setStyle(common_table_style)
+        elements.append(prescription_table)
+    
+    # Footer with line (remove the timestamp)
+    elements.append(Spacer(1, 30))
+    elements.append(Table([[""]],
+                         style=[
+                             ('LINEABOVE', (0, 0), (-1, 0), 1, colors.HexColor('#ecf0f1'))
+                         ]))
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer 

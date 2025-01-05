@@ -6,13 +6,14 @@
 <div class="container mt-4">
     <div class="card shadow-sm">
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="card-title">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center mb-4">
+                <h2 class="card-title h3 mb-3 mb-sm-0">
                     <i class="fas fa-user-edit me-2 text-primary"></i>Edit Patient
                 </h2>
                 <a href="{{ url_for('patients.print_patient', id=patient.id) }}" 
-                   class="btn btn-info" target="_blank">
-                    <i class="fas fa-print me-2"></i>Print Patient Info
+                   class="btn btn-info"
+                   target="_blank">
+                    <i class="fas fa-print me-2"></i>Print Information
                 </a>
             </div>
 

@@ -10,7 +10,15 @@ import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.models.doctor import get_active_doctors, get_doctors_for_dropdown
-from app.utils.pdf_generator import create_patient_pdf
+from app.utils.pdf_generator import create_patient_pdf, create_followup_pdf
+from app.models.followup import (
+    create_followup, 
+    get_patient_followups, 
+    get_followup_by_id,
+    delete_followup_record
+)
+import json
+from app.models.medicine import get_all_medicines, save_prescription
 
 patients_bp = Blueprint('patients', __name__)
 
@@ -452,3 +460,97 @@ def print_patient(id):
         download_name=f'patient_{patient["name"]}_{patient["opd_uid"]}.pdf',
         mimetype='application/pdf'
     ) 
+
+@patients_bp.route('/patients/<int:id>/followups')
+@login_required
+@role_required(['admin', 'doctor', 'staff'])
+def patient_followups(id):
+    patient = get_patient_by_id(id)
+    if not patient:
+        flash('Patient not found.', 'danger')
+        return redirect(url_for('patients.patient_list'))
+    
+    followups = get_patient_followups(id)
+    return render_template('patients/followups.html', 
+                         patient=patient, 
+                         followups=followups)
+
+@patients_bp.route('/patients/<int:id>/followups/add', methods=['GET', 'POST'])
+@login_required
+@role_required(['admin', 'doctor'])
+def add_followup(id):
+    if request.method == 'POST':
+        followup_data = {
+            'patient_id': id,
+            'visit_date': request.form.get('visit_date'),
+            'complaints': request.form.get('complaints'),
+            'examination': request.form.get('examination'),
+            'diagnosis': request.form.get('diagnosis'),
+            'treatment': request.form.get('treatment'),
+            'next_visit_date': request.form.get('next_visit_date'),
+            'doctor_name': request.form.get('doctor_name')
+        }
+        
+        try:
+            # Create followup
+            followup_id = create_followup(followup_data)
+            
+            # Handle prescriptions
+            prescriptions_json = request.form.get('prescriptions')
+            if prescriptions_json:
+                prescriptions = json.loads(prescriptions_json)
+                save_prescription(followup_id, prescriptions)
+            
+            flash('Follow-up added successfully!', 'success')
+            return redirect(url_for('patients.patient_followups', id=id))
+        except Exception as e:
+            flash('Error adding follow-up. Please try again.', 'danger')
+            return render_template('patients/add_followup.html',
+                                patient=get_patient_by_id(id),
+                                doctors=get_active_doctors(),
+                                medicines=get_all_medicines(),
+                                today_date=date.today().strftime('%Y-%m-%d'))
+
+    return render_template('patients/add_followup.html',
+                         patient=get_patient_by_id(id),
+                         doctors=get_active_doctors(),
+                         medicines=get_all_medicines(),
+                         today_date=date.today().strftime('%Y-%m-%d'))
+
+@patients_bp.route('/followups/print/<int:id>')
+@login_required
+@role_required(['admin', 'doctor', 'staff'])
+def print_followup(id):
+    followup = get_followup_by_id(id)
+    if not followup:
+        flash('Follow-up not found.', 'danger')
+        return redirect(url_for('patients.patient_list'))
+    
+    patient = get_patient_by_id(followup['patient_id'])
+    
+    pdf_buffer = create_followup_pdf(followup, patient)
+    return send_file(
+        pdf_buffer,
+        download_name=f'followup_{patient["name"]}_{followup["visit_date"].strftime("%Y%m%d")}.pdf',
+        mimetype='application/pdf'
+    ) 
+
+@patients_bp.route('/patients/followups/delete/<int:id>')
+@login_required
+@role_required(['admin', 'doctor'])
+def delete_followup(id):
+    try:
+        # Get followup to check patient_id
+        followup = get_followup_by_id(id)
+        if not followup:
+            flash('Follow-up not found.', 'danger')
+            return redirect(url_for('patients.patient_list'))
+        
+        patient_id = followup['patient_id']
+        delete_followup_record(id)
+        flash('Follow-up deleted successfully!', 'success')
+        return redirect(url_for('patients.patient_followups', id=patient_id))
+    except Exception as e:
+        print(f"Error deleting followup: {str(e)}")
+        flash('Error deleting follow-up. Please try again.', 'danger')
+        return redirect(url_for('patients.patient_followups', id=patient_id)) 
