@@ -4,7 +4,7 @@ from app.models.user_management import (
     get_all_users, get_user_by_username, create_user, 
     update_user, delete_user, get_user_by_id
 )
-from app.utils import role_required
+from app.utils.auth import role_required
 import re
 
 users_bp = Blueprint('users', __name__)

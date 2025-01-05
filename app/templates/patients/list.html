@@ -35,6 +35,13 @@
                             <td class="d-none d-md-table-cell">{{ patient.gender.title() }}</td>
                             <td>
                                 <div class="btn-group">
+                                    <a href="{{ url_for('patients.print_patient', id=patient.id) }}" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       target="_blank"
+                                       data-bs-toggle="tooltip" 
+                                       title="Print">
+                                        <i class="fas fa-print"></i>
+                                    </a>
                                     <a href="{{ url_for('patients.edit_patient', id=patient.id) }}" 
                                        class="btn btn-sm btn-outline-primary" 
                                        data-bs-toggle="tooltip" 
@@ -92,10 +99,10 @@
         background-color: #0056b3;
         border-color: #0056b3;
     }
-    .btn-outline-primary, .btn-outline-danger {
+    .btn-outline-primary, .btn-outline-danger, .btn-outline-info {
         border-width: 2px;
     }
-    .btn-outline-primary:hover, .btn-outline-danger:hover {
+    .btn-outline-primary:hover, .btn-outline-danger:hover, .btn-outline-info:hover {
         color: #fff;
     }
     .badge {

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, send_from_directory
+from flask import Blueprint, render_template, redirect, url_for, send_from_directory, current_app
 from flask_login import login_required
 from app.models.patient import get_all_patients
 from app.models.doctor import get_active_doctors
@@ -35,5 +35,5 @@ def dashboard():
 
 @main_bp.route('/favicon.ico')
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static/img'),
+    return send_from_directory(os.path.join(current_app.root_path, 'static/img'),
                              'favicon.ico', mimetype='image/vnd.microsoft.icon') 

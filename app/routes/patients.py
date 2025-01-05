@@ -1,15 +1,16 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required
 from app.models.patient import (
     get_all_patients, get_patient_by_id, create_patient, 
     update_patient, delete_patient
 )
-from app.utils import role_required
+from app.utils.auth import role_required
 from datetime import date
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.models.doctor import get_active_doctors, get_doctors_for_dropdown
+from app.utils.pdf_generator import create_patient_pdf
 
 patients_bp = Blueprint('patients', __name__)
 
@@ -435,3 +436,19 @@ def delete_file(patient_id, filename):
         flash('File not found', 'error')
     
     return redirect(url_for('patients.edit_patient', id=patient_id)) 
+
+@patients_bp.route('/patients/print/<int:id>')
+@login_required
+@role_required(['admin', 'doctor', 'staff'])
+def print_patient(id):
+    patient = get_patient_by_id(id)
+    if not patient:
+        flash('Patient not found.', 'danger')
+        return redirect(url_for('patients.patient_list'))
+    
+    pdf_buffer = create_patient_pdf(patient)
+    return send_file(
+        pdf_buffer,
+        download_name=f'patient_{patient["name"]}_{patient["opd_uid"]}.pdf',
+        mimetype='application/pdf'
+    ) 

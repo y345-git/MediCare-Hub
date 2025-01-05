@@ -4,6 +4,7 @@ from app.models.doctor import (
     get_all_doctors, get_doctor_by_id, create_doctor, 
     update_doctor, delete_doctor
 )
+from app.utils.auth import role_required
 import re
 
 doctors_bp = Blueprint('doctors', __name__)
